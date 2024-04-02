@@ -791,9 +791,13 @@ def _handle_listed_color_map(cmap, data):
         # 'winter': 'winter',
     }
     for mpl_cm, pgf_cm in cm_translate.items():
-        if cmap.colors == plt.get_cmap(mpl_cm).colors:
-            is_custom_colormap = False
-            return (pgf_cm, is_custom_colormap)
+        try:
+            if cmap.colors == plt.get_cmap(mpl_cm).colors:
+                is_custom_colormap = False
+                return (pgf_cm, is_custom_colormap)
+        except ValueError:
+            # might happen if cmap.colors cannot be broadcast against plt.get_cmap(mpl_cm).colors as an np array, in which case they are definitely not equal
+            pass
 
     unit = "pt"
     ff = data["float format"]

@@ -1,3 +1,5 @@
+import functools
+import re
 import matplotlib.transforms
 import numpy as np
 
@@ -39,3 +41,35 @@ def transform_to_data_coordinates(obj, xdata, ydata):
         )
         return transform.transform(points).T
     return xdata, ydata
+
+
+_NO_ESCAPE = r"(?<!\\)(?:\\\\)*"
+_split_math = re.compile(_NO_ESCAPE + r"\$").split
+_replace_mathdefault = functools.partial(
+    # Replace \mathdefault (when not preceded by an escape) by empty string.
+    re.compile(_NO_ESCAPE + r"(\\mathdefault)").sub, "")
+
+def _common_texification(text):
+    return _tex_escape(text)
+
+def _tex_escape(text):
+    r"""
+    Do some necessary and/or useful substitutions for texts to be included in
+    LaTeX documents.
+    This distinguishes text-mode and math-mode by replacing the math separator
+    ``$`` with ``\(\displaystyle %s\)``. Escaped math separators (``\$``)
+    are ignored.
+    """
+    # Sometimes, matplotlib adds the unknown command \mathdefault.
+    # Not using \mathnormal instead since this looks odd for the latex cm font.
+    text = _replace_mathdefault(text)
+    text = text.replace("\N{MINUS SIGN}", r"\ensuremath{-}")
+    # Work around <https://github.com/matplotlib/matplotlib/issues/15493>
+    text = text.replace("&", r"\&")
+    # split text into normaltext and inline math parts
+    parts = _split_math(text)
+    for i, s in enumerate(parts):
+        if i % 2:  # mathmode replacements
+            s = r"\(\displaystyle %s\)" % s
+        parts[i] = s
+    return "".join(parts)

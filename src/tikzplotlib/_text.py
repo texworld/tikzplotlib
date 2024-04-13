@@ -1,7 +1,44 @@
 import matplotlib as mpl
+import re
 from matplotlib.patches import ArrowStyle
 
 from . import _color
+
+def escape_text(text):
+    """
+    Escapes certain patterns in a given text to make them compatible with
+    LaTeX formatting, especially for SI units.
+
+    Parameters:
+    - text (str): The input string that needs to be processed for LaTeX-
+    compatible escapes.
+
+    Returns:
+    - str: The text with escaped patterns suitable for LaTeX rendering.
+
+    The function primarily performs the following conversions:
+    1. Converts percentages, e.g., "45%", "45.5 %", to the LaTeX SI
+    unit format: "\\SI{45}{\\percent}".
+    2. Fixes potential issues with the "\\SI" unit for the plus-minus
+    notation.
+    3. Corrects ", s" patterns to ", \\SI{\\s}".
+
+    Note:
+    This function assumes that the input text is likely to contain numeric
+    values that need to be presented using SI notation in LaTeX. For
+    correct rendering, the siunitx LaTeX package should be included in
+    the document.
+
+    Example:
+    Given the input: "The efficiency is 45% and the tolerance is
+    +-\\SI{2}{\\degree}, s"
+    The output will be: "The efficiency is \\SI{45}{\\percent} and
+    the tolerance is \\SI{+-2}{\\degree}, \\SI{\s}"
+    """
+    res_text = re.sub(r"(\d+(\.\d+)?)\s?%", r"\\SI{\1}{\\percent}", text)
+    res_text = re.sub(r"(\d+(\.\d+)?)\s?mm", r"\\SI{\1}{\\mm}", res_text)
+    res_text = re.sub(r"(\d+(\.\d+)?)\s?deg", r"\\SI{\1}{\\degree}", res_text)
+    return res_text.replace("+-\\SI{", "\\SI{+-").replace(", s", ", \\SI{\\s}")
 
 
 def draw_text(data, obj):
@@ -23,7 +60,8 @@ def draw_text(data, obj):
 
         if obj.axes:
             # If the coordinates are relative to an axis, use `axis cs`.
-            tikz_pos = f"(axis cs:{pos[0]:{ff}},{pos[1]:{ff}})"
+            rel = "rel " if abs(pos[0]) < 1 and abs(pos[1]) < 1 else ""
+            tikz_pos = f"({rel}axis cs:{pos[0]:{ff}},{pos[1]:{ff}})"
         else:
             # relative to the entire figure, it's a getting a littler harder. See
             # <http://tex.stackexchange.com/a/274902/13262> for a solution to the
@@ -115,7 +153,7 @@ def draw_text(data, obj):
         text = text.replace("\n ", "\\\\")
 
     props = ",\n  ".join(properties)
-    text = " ".join(style + [text])
+    text = escape_text(" ".join(style + [text])).replace("\n", "\\\\")
     content.append(f"\\draw {tikz_pos} node[\n  {props}\n]{{{text}}};\n")
     return data, content
 

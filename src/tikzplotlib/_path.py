@@ -231,7 +231,7 @@ def draw_pathcollection(data, obj):
 
     is_contour = len(dd) == 1
     if is_contour:
-        draw_options = ["draw=none"]
+        draw_options = ["thick"]
 
     if marker0 is not None:
         data, pgfplots_marker, marker_options = _mpl_marker2pgfp_marker(
@@ -303,7 +303,7 @@ def draw_pathcollection(data, obj):
 
         plot_table = []
         plot_table.append("  ".join(labels) + "\n")
-        for row in dd_strings:
+        for row in dd_strings[::data["every n dot"]]:
             plot_table.append(" ".join(row) + "\n")
 
         if data["externalize tables"]:
@@ -468,9 +468,13 @@ def mpl_linestyle2pgfplots_linestyle(data, line_style, line=None):
         # get defaults
         default_dashOffset, default_dashSeq = mpl.lines._get_dash_pattern(line_style)
 
-        # get dash format of line under test
-        dashSeq = line._us_dashSeq
-        dashOffset = line._us_dashOffset
+        try:
+            # get dash format of line under test
+            dashSeq = line._us_dashSeq
+            dashOffset = line._us_dashOffset
+        except AttributeError:
+            dashSeq = default_dashSeq
+            dashOffset = default_dashOffset
 
         lst = list()
         if dashSeq != default_dashSeq:

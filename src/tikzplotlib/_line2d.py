@@ -7,6 +7,7 @@ from . import _color as mycol
 from . import _files
 from . import _path as mypath
 from ._markers import _mpl_marker2pgfp_marker
+from ._text import escape_text
 from ._util import get_legend_text, has_legend, transform_to_data_coordinates
 
 
@@ -100,7 +101,7 @@ def draw_line2d(data, obj):
     content += c
 
     if legend_text is not None:
-        content.append(f"\\addlegendentry{{{legend_text}}}\n")
+        content.append(f"\\addlegendentry{{{escape_text(legend_text)}}}\n")
 
     return data, content
 
@@ -272,9 +273,15 @@ def _table(obj, data):  # noqa: C901
         if "unbounded coords=jump" not in data["current axes"].axis_options:
             data["current axes"].axis_options.append("unbounded coords=jump")
 
-    plot_table = [
-        f"{x:{xformat}}{col_sep}{y:{ff}}{table_row_sep}" for x, y in zip(xdata, ydata)
-    ]
+    if len(xdata) > data["every n dot"]:
+        plot_table = [
+            f"{x:{xformat}}{col_sep}{y:{ff}}{table_row_sep}" for x, y in zip(
+                xdata[::data["every n dot"]],
+                ydata[::data["every n dot"]])]
+    else:
+        plot_table = [
+            f"{x:{xformat}}{col_sep}{y:{ff}}{table_row_sep}" for x, y in zip(xdata, ydata)]
+
 
     min_extern_length = 3
 

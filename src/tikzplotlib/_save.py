@@ -40,6 +40,8 @@ def get_tikz_code(
     float_format: str = ".15g",
     table_row_sep: str = "\n",
     flavor: str = "latex",
+    every_n_dot: int = 1,
+    axis_equal: bool = False,
 ):
     """Main function. Here, the recursion into the image starts and the
     contents are picked up. The actual file gets written in this routine.
@@ -136,6 +138,12 @@ def get_tikz_code(
                    Default is ``"latex"``.
     :type flavor: str
 
+    :param every_n_dot: if path is encountered, only draw every Nth dot
+    :type every_n_dot: int
+
+    :param axis_equal: if true, have equal axis ratio
+    :type axis_equal: bool
+
     :returns: None
 
     The following optional attributes of matplotlib's objects are recognized
@@ -176,6 +184,8 @@ def get_tikz_code(
     data["legend colors"] = []
     data["add axis environment"] = add_axis_environment
     data["show_info"] = show_info
+    data["every n dot"] = every_n_dot
+    data["axis_equal"] = axis_equal
     # rectangle_legends is used to keep track of which rectangles have already
     # had \addlegendimage added. There should be only one \addlegenimage per
     # bar chart data series.

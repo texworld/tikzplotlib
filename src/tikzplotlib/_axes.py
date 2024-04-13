@@ -1,15 +1,29 @@
 import matplotlib as mpl
+import math
 import numpy as np
-from matplotlib.backends.backend_pgf import (
-    common_texification as mpl_common_texification,
-)
+import re
+from matplotlib.backends.backend_pgf import _tex_escape as mpl_tex_escape
 
 from . import _color
 
 
-def _common_texification(string):
+def _tex_escape(string):
     # Work around <https://github.com/matplotlib/matplotlib/issues/15493>
-    return mpl_common_texification(string).replace("&", "\\&")
+    return mpl_tex_escape(string).replace("&", "\\&")
+
+def _siunitx_texification(string: str) -> str:
+    string = re.sub(r"\smm", r" \\si{\\mm}", string)
+    string = re.sub(r"\s°C", r" \\si{\\celsius}", string)
+    string = re.sub(r"\sA/s", r" \\si{\\angstrom\\per\\second}", string)
+    string = re.sub(r"\sAngstrom", r" \\si{\\angstrom}", string)
+    string = re.sub(r"\sg/s", r" \\si{\\gram\\per\\second}", string)
+    string = re.sub(r"\shour", r" \\si{\\hour}", string)
+    string = re.sub(r"(\d+(\.\d+)?)\s?cc", r"\\SI{\1}{\\cc}", string)
+    string = re.sub(r"\scc", r" \\si{\\cc}", string)
+    string = re.sub(r"\s\\%", r" \\si{\\percent}", string)
+    string = re.sub(r"\sg/um", r" \\si{\\g\\per\\um}", string)
+    string = re.sub(r"(\d+(\.\d+)?)\s?deg", r"\\SI{\1}{\\degree}", string)
+    return string
 
 
 class Axes:
@@ -42,15 +56,21 @@ class Axes:
         title = obj.get_title()
         data["current axis title"] = title
         if title:
-            title = _common_texification(title)
+            title = _tex_escape(title)
+            title = _siunitx_texification(title)
             self.axis_options.append(f"title={{{title}}}")
 
         # get axes titles
         xlabel = obj.get_xlabel()
         if xlabel:
-            xlabel = _common_texification(xlabel)
+            xlabel = _tex_escape(xlabel)
+            xlabel = _siunitx_texification(xlabel)
 
             labelcolor = obj.xaxis.label.get_c()
+            xlabel_spl = xlabel.split(",")
+            if len(xlabel_spl) == 2:
+                xlabel = ",".join(["$" + xlabel_spl[0].replace(" ", "\\ ") + "$",
+                                   xlabel_spl[1]])
 
             if labelcolor != "black":
                 data, col, _ = _color.mpl_color2xcolor(data, labelcolor)
@@ -64,7 +84,15 @@ class Axes:
 
         ylabel = obj.get_ylabel()
         if ylabel:
-            ylabel = _common_texification(ylabel)
+            ylabel = _tex_escape(ylabel)
+            ylabel = _siunitx_texification(ylabel)
+
+            ylabel_spl = ylabel.split(",")
+            if len(ylabel_spl) == 2:
+                ylabel = ",".join(["$" + ylabel_spl[0].replace(" ",
+                    "\\ ").replace("+-", r"\pm").replace("-",
+                    r"\mhyphen ") + "$",
+                                   ylabel_spl[1]])
 
             labelcolor = obj.yaxis.label.get_c()
             if labelcolor != "black":
@@ -212,6 +240,8 @@ class Axes:
         else:
             # TODO keep an eye on https://tex.stackexchange.com/q/480058/13262
             pass
+        if data["axis_equal"]:
+            self.axis_options.append("axis equal")
 
     def _ticks(self, data, obj):
         # get ticks
@@ -329,6 +359,8 @@ class Axes:
             self.axis_options.append("xmajorgrids")
         if has_minor_xgrid:
             self.axis_options.append("xminorgrids")
+            # No way to check from the axis the actual style of the minor grid
+            self.axis_options.append("minor x grid style={gray!20}")
 
         xlines = obj.get_xgridlines()
         if xlines:
@@ -341,6 +373,8 @@ class Axes:
             self.axis_options.append("ymajorgrids")
         if has_minor_ygrid:
             self.axis_options.append("yminorgrids")
+            # No way to check from the axis the actual style of the minor grid
+            self.axis_options.append("minor y grid style={gray!20}")
 
         ylines = obj.get_ygridlines()
         if ylines:
@@ -594,17 +628,23 @@ def _get_ticks(data, xy, ticks, ticklabels):
         label = ticklabel.get_text()
         if "," in label:
             label = "{" + label + "}"
-        pgfplots_ticklabels.append(_common_texification(label))
+        pgfplots_ticklabels.append(_tex_escape(label))
 
     # note: ticks may be present even if labels are not, keep them for grid lines
     for tick in ticks:
         pgfplots_ticks.append(tick)
 
     # if the labels are all missing, then we need to output an empty set of labels
-    if len(ticklabels) == 0 and len(ticks) != 0:
+    data[f"nticks_{xy}"] = len(ticks)
+    if len(ticklabels) == 0 and len(ticks) != 0 and "minor" not in xy:
         axis_options.append(f"{xy}ticklabels={{}}")
         # remove the multiplier too
-        axis_options.append(f"scaled {xy} ticks=" + r"manual:{}{\pgfmathparse{#1}}")
+    elif "minor" in xy and len(ticks) != 0:
+        xy_ = xy.split()[1]
+        if data[f"nticks_{xy_}"] != 0:
+            multiplier = 5 * math.ceil(len(ticks)/data[f"nticks_{xy_}"]/5)
+            axis_options.append(f"minor {xy_} tick num={multiplier}")
+            axis_options.append(f"% {data[f'nticks_{xy_}']}; {len(ticks)}")
 
     # Leave the ticks to PGFPlots if not in STRICT mode and if there are no explicit
     # labels.
@@ -616,9 +656,8 @@ def _get_ticks(data, xy, ticks, ticklabels):
                     xy, ",".join([f"{el:{ff}}" for el in pgfplots_ticks])
                 )
             )
-        else:
-            val = "{}" if "minor" in xy else "\\empty"
-            axis_options.append(f"{xy}tick={val}")
+        elif "minor" not in xy:
+            axis_options.append(f"{xy}tick=\\empty")
 
         if is_label_required:
             length = sum(len(label) for label in pgfplots_ticklabels)

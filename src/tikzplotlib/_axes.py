@@ -17,25 +17,26 @@ class Axes:
         """Returns the PGFPlots code for an axis environment."""
         self.content = []
 
-        # Are we dealing with an axis that hosts a colorbar? Skip then, those are
-        # treated implicitily by the associated axis.
-        self.is_colorbar = _is_colorbar_heuristic(obj)
-        if self.is_colorbar:
-            return
-
         # instantiation
         self.nsubplots = 1
         self.subplot_index = 0
         self.is_subplot = False
 
-        if isinstance(obj, mpl.axes.Subplot):
+        self.axis_options = []
+
+        # Are we dealing with an axis that hosts a colorbar? Skip then, those are
+        # treated implicitily by the associated axis.
+        self.is_colorbar = _is_colorbar_heuristic(obj)
+
+        if isinstance(obj, mpl.axes.Subplot) and not self.is_colorbar:
             self._subplot(obj, data)
 
         self.axis_options = []
         self.is_visible = obj.get_visible()
 
         # check if axes need to be displayed at all
-        if not (obj.axison and self.is_visible):
+        # unassociated colorbars should have hidden axes; colorbars associated to axes will be printed by the axis
+        if not (obj.axison and self.is_visible) or self.is_colorbar:
             self.axis_options.append("hide x axis")
             self.axis_options.append("hide y axis")
 
@@ -154,10 +155,9 @@ class Axes:
         if col != "white":
             self.axis_options.append(f"axis background/.style={{fill={col}}}")
 
-        # find color bar
-        colorbar = _find_associated_colorbar(obj)
-        if colorbar:
-            self._colorbar(colorbar, data)
+        self.colorbar = _find_associated_colorbar(obj)
+        if self.colorbar:
+            self._colorbar(self.colorbar, data)
 
         if self.is_subplot:
             self.content.append("\n\\nextgroupplot")
@@ -801,7 +801,7 @@ def _handle_listed_color_map(cmap, data):
     if cmap.N is None or cmap.N == len(cmap.colors):
         colors = [
             f"rgb({k}{unit})=({rgb[0]:{ff}},{rgb[1]:{ff}},{rgb[2]:{ff}})"
-            for k, rgb in enumerate(cmap.colors)
+            for k, rgb in enumerate(map(mpl.colors.to_rgb, cmap.colors))
         ]
     else:
         reps = int(float(cmap.N) / len(cmap.colors) - 0.5) + 1
@@ -859,6 +859,12 @@ def _find_associated_colorbar(obj):
     next axis environment, and see if it is de facto a color bar; if yes, return the
     color bar object.
     """
+    try:
+        cbar = obj._colorbar
+        if cbar is not None:
+            return cbar
+    except AttributeError:
+        pass
     for child in obj.get_children():
         try:
             cbar = child.colorbar

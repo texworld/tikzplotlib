@@ -348,8 +348,12 @@ def _recurse(data, obj):
             data["current mpl axes obj"] = child
             data["current axes"] = ax
 
-            # Run through the child objects, gather the content.
-            data, children_content = _recurse(data, child)
+            if ax.is_visible:
+                # Run through the child objects, gather the content.
+                data, children_content = _recurse(data, child)
+            else:
+                # we may still display the colorbar
+                children_content = []
 
             # populate content and add axis environment if desired
             if data["add axis environment"]:

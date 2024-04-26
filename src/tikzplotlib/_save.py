@@ -328,6 +328,9 @@ def _recurse(data, obj):
     """Iterates over all children of the current object, gathers the contents
     contributing to the resulting PGFPlots file, and returns those.
     """
+    # bound_colorbars holds colorbars that are associated to axes
+    # we don't add axes from colorbars if they come after the axis to which they were associated
+    bound_colorbars = []
     content = _ContentManager()
     for child in obj.get_children():
         # Some patches are Spines, too; skip those entirely.
@@ -338,8 +341,11 @@ def _recurse(data, obj):
         if isinstance(child, mpl.axes.Axes):
             ax = _axes.Axes(data, child)
 
-            if ax.is_colorbar:
+            if ax.is_colorbar and any(ax.colorbar is cb for cb in bound_colorbars):
                 continue
+
+            if not ax.is_colorbar and ax.colorbar is not None:
+                bound_colorbars.append(ax.colorbar)
 
             # add extra axis options
             if data["extra axis options [base]"]:
@@ -348,8 +354,12 @@ def _recurse(data, obj):
             data["current mpl axes obj"] = child
             data["current axes"] = ax
 
-            # Run through the child objects, gather the content.
-            data, children_content = _recurse(data, child)
+            if ax.is_visible and not ax.is_colorbar:
+                # Run through the child objects, gather the content.
+                data, children_content = _recurse(data, child)
+            else:
+                # we may still display the colorbar
+                children_content = []
 
             # populate content and add axis environment if desired
             if data["add axis environment"]:

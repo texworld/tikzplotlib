@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 
 def plot():
     # Make a figure and axes with dimensions as desired.
-    fig, ax = plt.subplots(3)
+    fig, ax = plt.subplots(4)
 
     # Set the colormap and norm to correspond to the data for which the colorbar will be
     # used.
@@ -68,6 +68,16 @@ def plot():
         orientation="horizontal",
     )
     cb3.set_label("Custom extension lengths, some other units")
+
+    # Set the colormap and norm to correspond to the data for which the colorbar will be
+    # used.  This time attach the colorbar to axes.
+    cmap = mpl.cm.cool
+    norm = mpl.colors.Normalize(vmin=-5, vmax=10)
+
+    img = ax[3].imshow([[0, 1]], cmap=cmap)
+    ax[3].set_visible(False)
+    cax = fig.add_axes([0.1, 1, 0.8, 0.1])
+    cb4 = fig.colorbar(img, cax=cax, orientation="horizontal", label="Some Units")
 
     return fig
 

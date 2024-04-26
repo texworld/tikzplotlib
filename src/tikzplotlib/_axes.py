@@ -32,9 +32,10 @@ class Axes:
             self._subplot(obj, data)
 
         self.axis_options = []
+        self.is_visible = obj.get_visible()
 
         # check if axes need to be displayed at all
-        if not obj.axison:
+        if not (obj.axison and self.is_visible):
             self.axis_options.append("hide x axis")
             self.axis_options.append("hide y axis")
 

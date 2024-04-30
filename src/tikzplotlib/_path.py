@@ -194,21 +194,25 @@ def draw_pathcollection(data, obj):
             ls = None
 
         if add_individual_color_code:
-            draw_options.extend(
-                [
-                    "scatter",
-                    "visualization depends on={value \\thisrow{draw} \\as \\drawcolor}",
-                    "visualization depends on={value \\thisrow{fill} \\as \\fillcolor}",
-                    "scatter/@pre marker code/.code={%\n"
-                    + "  \\expanded{%\n"
-                    + "  \\noexpand\\definecolor{thispointdrawcolor}{RGB}{\\drawcolor}%\n"
-                    + "  \\noexpand\\definecolor{thispointfillcolor}{RGB}{\\fillcolor}%\n"
-                    + "  }%\n"
-                    + "  \\scope[draw=thispointdrawcolor, fill=thispointfillcolor]%\n"
-                    + "}",
-                    "scatter/@post marker code/.code={%\n  \\endscope\n}",
-                ]
-            )
+            draw_options.append("scatter")
+            if "draw" in labels or "fill" in labels:
+                if "draw" in labels:
+                    draw_options.append("visualization depends on={value \\thisrow{draw} \\as \\drawcolor}")
+                if "fill" in labels:
+                    draw_options.append("visualization depends on={value \\thisrow{fill} \\as \\fillcolor}")
+                scope_vars = ", ".join(f"{var}=thispoint{var}color" for var in ("draw", "fill") if var in labels)
+                draw_options.extend(
+                    [
+                        "scatter/@pre marker code/.code={%\n"
+                        + "  \\expanded{%\n"
+                        + ("  \\noexpand\\definecolor{thispointdrawcolor}{RGB}{\\drawcolor}%\n" if "draw" in labels else "")
+                        + ("  \\noexpand\\definecolor{thispointfillcolor}{RGB}{\\fillcolor}%\n" if "fill" in labels else "")
+                        + "  }%\n"
+                        + "  \\scope[" + scope_vars + "]%\n"
+                        + "}",
+                        "scatter/@post marker code/.code={%\n  \\endscope\n}",
+                    ]
+                )
 
         # "solution" from
         # <https://github.com/matplotlib/matplotlib/issues/4672#issuecomment-378702670>
@@ -249,7 +253,11 @@ def draw_pathcollection(data, obj):
     if legend_text is None and has_legend(obj.axes):
         draw_options.append("forget plot")
 
+    # track content that's been seen so we can de-duplicate (this is a bit of a kludge)
+    code_seen = set()
+    table_map = {}
     for path in obj.get_paths():
+        cur_content = []
         if is_contour:
             dd = path.vertices
             # https://matplotlib.org/stable/api/path_api.html
@@ -289,7 +297,7 @@ def draw_pathcollection(data, obj):
         len_row = sum(len(item) for item in draw_options)
         j0, j1, j2 = ("", ", ", "") if len_row < 80 else ("\n  ", ",\n  ", "\n")
         do = f" [{j0}{{}}{j2}]".format(j1.join(draw_options)) if draw_options else ""
-        content.append(f"\\addplot{do}\n")
+        cur_content.append(f"\\addplot{do}\n")
 
         if data["externals search path"] is not None:
             esp = data["externals search path"]
@@ -297,9 +305,9 @@ def draw_pathcollection(data, obj):
 
         if len(table_options) > 0:
             table_options_str = ", ".join(table_options)
-            content.append(f"table [{table_options_str}]{{")
+            cur_content.append(f"table [{table_options_str}]{{")
         else:
-            content.append("table{")
+            cur_content.append("table{")
 
         plot_table = []
         plot_table.append("  ".join(labels) + "\n")
@@ -307,16 +315,23 @@ def draw_pathcollection(data, obj):
             plot_table.append(" ".join(row) + "\n")
 
         if data["externalize tables"]:
-            filepath, rel_filepath = _files.new_filepath(data, "table", ".dat")
-            with open(filepath, "w") as f:
-                # No encoding handling required: plot_table is only ASCII
-                f.write("".join(plot_table))
-            content.append(str(rel_filepath))
+            plot_table_str = "".join(plot_table)
+            if plot_table_str not in table_map:
+                filepath, rel_filepath = _files.new_filepath(data, "table", ".dat")
+                with open(filepath, "w") as f:
+                    # No encoding handling required: plot_table is only ASCII
+                    f.write("".join(plot_table))
+                table_map[plot_table_str] = str(rel_filepath)
+            cur_content.append(table_map[plot_table_str])
         else:
-            content.append("%\n")
-            content.extend(plot_table)
+            cur_content.append("%\n")
+            cur_content.extend(plot_table)
 
-        content.append("};\n")
+        cur_content.append("};\n")
+        # very dumb kludge: skip duplicates
+        if tuple(cur_content) not in code_seen:
+            content.extend(cur_content)
+            code_seen.add(tuple(cur_content))
 
     if legend_text is not None:
         content.append(f"\\addlegendentry{{{legend_text}}}\n")

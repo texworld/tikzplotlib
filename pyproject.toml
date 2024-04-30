@@ -35,6 +35,11 @@ dependencies = [
   "webcolors",
 ]
 
+[project.optional-dependencies]
+dev = [
+  "seaborn"
+]
+
 [project.urls]
 Code = "https://github.com/nschloe/tikzplotlib"
 Issues = "https://github.com/nschloe/tikzplotlib/issues"

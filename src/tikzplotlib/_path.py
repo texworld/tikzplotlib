@@ -194,21 +194,25 @@ def draw_pathcollection(data, obj):
             ls = None
 
         if add_individual_color_code:
-            draw_options.extend(
-                [
-                    "scatter",
-                    "visualization depends on={value \\thisrow{draw} \\as \\drawcolor}",
-                    "visualization depends on={value \\thisrow{fill} \\as \\fillcolor}",
-                    "scatter/@pre marker code/.code={%\n"
-                    + "  \\expanded{%\n"
-                    + "  \\noexpand\\definecolor{thispointdrawcolor}{RGB}{\\drawcolor}%\n"
-                    + "  \\noexpand\\definecolor{thispointfillcolor}{RGB}{\\fillcolor}%\n"
-                    + "  }%\n"
-                    + "  \\scope[draw=thispointdrawcolor, fill=thispointfillcolor]%\n"
-                    + "}",
-                    "scatter/@post marker code/.code={%\n  \\endscope\n}",
-                ]
-            )
+            draw_options.append("scatter")
+            if "draw" in labels or "fill" in labels:
+                if "draw" in labels:
+                    draw_options.append("visualization depends on={value \\thisrow{draw} \\as \\drawcolor}")
+                if "fill" in labels:
+                    draw_options.append("visualization depends on={value \\thisrow{fill} \\as \\fillcolor}")
+                scope_vars = ", ".join(f"{var}=thispoint{var}color" for var in ("draw", "fill") if var in labels)
+                draw_options.extend(
+                    [
+                        "scatter/@pre marker code/.code={%\n"
+                        + "  \\expanded{%\n"
+                        + ("  \\noexpand\\definecolor{thispointdrawcolor}{RGB}{\\drawcolor}%\n" if "draw" in labels else "")
+                        + ("  \\noexpand\\definecolor{thispointfillcolor}{RGB}{\\fillcolor}%\n" if "fill" in labels else "")
+                        + "  }%\n"
+                        + "  \\scope[" + scope_vars + "]%\n"
+                        + "}",
+                        "scatter/@post marker code/.code={%\n  \\endscope\n}",
+                    ]
+                )
 
         # "solution" from
         # <https://github.com/matplotlib/matplotlib/issues/4672#issuecomment-378702670>

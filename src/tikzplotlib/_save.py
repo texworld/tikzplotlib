@@ -227,7 +227,6 @@ def get_tikz_code(
         figure,
         wrap: bool = wrap,
         include_disclaimer: bool = include_disclaimer,
-        include_colordefs: bool = True,
     ):
         # gather the file content
         data, content = _recurse(data, figure)
@@ -255,7 +254,7 @@ def get_tikz_code(
             code += "\n"
 
         coldefs = _get_color_definitions(data)
-        if coldefs and include_colordefs:
+        if coldefs:
             code += "\n".join(coldefs) + "\n\n"
 
         code += "".join(content)
@@ -281,7 +280,6 @@ def get_tikz_code(
                 figure._fig,
                 wrap=True,
                 include_disclaimer=False,
-                include_colordefs=False,
             )
             frames.append(f"% Frame {frame + 1}\n{code}\n")
 
@@ -299,10 +297,6 @@ def get_tikz_code(
             code += f"{{{data['framerate']}}}"
             code += "\n"
             code += "\n"
-
-        coldefs = _get_color_definitions(data)
-        if coldefs:
-            code += "\n".join(coldefs) + "\n\n"
 
         code += "\n\\newframe\n".join(frames)
 

@@ -438,7 +438,11 @@ class Axes:
 
     def _subplot(self, obj, data):
         # https://github.com/matplotlib/matplotlib/issues/7225#issuecomment-252173667
-        geom = obj.get_subplotspec().get_topmost_subplotspec().get_geometry()
+        try:
+            geom = obj.get_subplotspec().get_topmost_subplotspec().get_geometry()
+        except AttributeError:
+            # obj.get_subplotspec() is sometimes None
+            return
 
         self.nsubplots = geom[0] * geom[1]
         if self.nsubplots > 1:

@@ -3,10 +3,13 @@ from __future__ import annotations
 import enum
 import tempfile
 import warnings
+from typing import Literal
 from pathlib import Path
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
+import matplotlib.animation as animation
+import matplotlib.figure as figure
 
 from . import _axes
 from . import _image as img
@@ -17,7 +20,7 @@ from .__about__ import __version__
 
 
 def get_tikz_code(
-    figure="gcf",
+    figure: Literal["gcf"] | figure.Figure | animation.TimedAnimation = "gcf",
     filepath: str | Path | None = None,
     axis_width: str | None = None,
     axis_height: str | None = None,
@@ -32,6 +35,11 @@ def get_tikz_code(
     extra_axis_parameters: list | set | None = None,
     extra_groupstyle_parameters: dict = {},
     extra_tikzpicture_parameters: list | set | None = None,
+    extra_animation_parameters: list | set | None = [
+        "autoplay",
+        "autoresume",
+        "controls",
+    ],
     extra_lines_start: list | set | None = None,
     dpi: int | None = None,
     show_info: bool = False,
@@ -44,7 +52,7 @@ def get_tikz_code(
     """Main function. Here, the recursion into the image starts and the
     contents are picked up. The actual file gets written in this routine.
 
-    :param figure: either a Figure object or 'gcf' (default).
+    :param figure: either a Figure object or an animation or 'gcf' (default).
 
     :param axis_width: If not ``None``, this will be used as figure width within the
                        TikZ/PGFPlots output. If ``axis_height`` is not given,
@@ -109,6 +117,10 @@ def get_tikz_code(
                                          (as a set) to pgfplots.
     :type extra_tikzpicture_parameters: a set of strings for the pfgplots tikzpicture.
 
+    :param extra_animation_parameters: Extra animation options to be passed
+                                       (as a set) to animateinline when an animation is passed.
+    :type extra_animation_parameters: a set of strings for the animateinline animation.
+
     :param dpi: The resolution in dots per inch of the rendered image in case
                 of QuadMesh plots. If ``None`` it will default to the value
                 ``savefig.dpi`` from matplotlib.rcParams. Default is ``None``.
@@ -150,6 +162,7 @@ def get_tikz_code(
     if figure == "gcf":
         figure = plt.gcf()
     data = {}
+    data["animation"] = isinstance(figure, animation.Animation)
     data["axis width"] = axis_width
     data["axis height"] = axis_height
     data["rel data path"] = (
@@ -209,39 +222,89 @@ def get_tikz_code(
     if show_info:
         _print_pgfplot_libs_message(data)
 
-    # gather the file content
-    data, content = _recurse(data, figure)
+    def get_figure_tikz_code(
+        data,
+        figure,
+        wrap: bool = wrap,
+        include_disclaimer: bool = include_disclaimer,
+    ):
+        # gather the file content
+        data, content = _recurse(data, figure)
 
-    # Check if there is still an open groupplot environment. This occurs if not
-    # all of the group plot slots are used.
-    if "is_in_groupplot_env" in data and data["is_in_groupplot_env"]:
-        content.extend(data["flavor"].end("groupplot") + "\n\n")
+        # Check if there is still an open groupplot environment. This occurs if not
+        # all of the group plot slots are used.
+        if "is_in_groupplot_env" in data and data["is_in_groupplot_env"]:
+            content.extend(data["flavor"].end("groupplot") + "\n\n")
+            data["is_in_groupplot_env"] = False
 
-    # write disclaimer to the file header
-    code = """"""
+        code = """"""
 
-    if include_disclaimer:
-        disclaimer = f"This file was created with tikzplotlib v{__version__}."
-        code += _tex_comment(disclaimer)
+        if include_disclaimer:
+            disclaimer = f"This file was created with tikzplotlib v{__version__}."
+            code += _tex_comment(disclaimer)
 
-    # write the contents
-    if wrap and add_axis_environment:
-        code += data["flavor"].start("tikzpicture")
-        if extra_tikzpicture_parameters:
-            code += "[\n" + ",\n".join(extra_tikzpicture_parameters) + "\n]"
-        code += "\n"
-        if extra_lines_start:
-            code += "\n".join(extra_lines_start) + "\n"
-        code += "\n"
+        # write the contents
+        if wrap and add_axis_environment:
+            code += data["flavor"].start("tikzpicture")
+            if extra_tikzpicture_parameters:
+                code += "[\n" + ",\n".join(extra_tikzpicture_parameters) + "\n]"
+            code += "\n"
+            if extra_lines_start:
+                code += "\n".join(extra_lines_start) + "\n"
+            code += "\n"
 
-    coldefs = _get_color_definitions(data)
-    if coldefs:
-        code += "\n".join(coldefs) + "\n\n"
+        coldefs = _get_color_definitions(data)
+        if coldefs:
+            code += "\n".join(coldefs) + "\n\n"
 
-    code += "".join(content)
+        code += "".join(content)
 
-    if wrap and add_axis_environment:
-        code += data["flavor"].end("tikzpicture") + "\n"
+        if wrap and add_axis_environment:
+            code += data["flavor"].end("tikzpicture") + "\n"
+
+        return data, content, code
+
+    if isinstance(figure, animation.TimedAnimation):
+        extra_animation_parameters = list(extra_animation_parameters or [])
+        if figure._repeat and "loop" not in extra_animation_parameters:
+            extra_animation_parameters.append("loop")
+
+        data["framerate"] = 1000 / figure._interval
+
+        frames = []
+
+        for frame in figure.new_frame_seq():
+            figure._draw_frame(frame)
+            data, content, code = get_figure_tikz_code(
+                data,
+                figure._fig,
+                wrap=True,
+                include_disclaimer=False,
+            )
+            frames.append(f"% Frame {frame + 1}\n{code}\n")
+
+        code = """"""
+
+        if include_disclaimer:
+            disclaimer = f"This file was created with tikzplotlib v{__version__}."
+            code += _tex_comment(disclaimer)
+
+        # write the contents
+        if wrap:
+            code += data["flavor"].start("animateinline")
+            if extra_animation_parameters:
+                code += "[\n" + ",\n".join(extra_animation_parameters) + "\n]"
+            code += f"{{{data['framerate']}}}"
+            code += "\n"
+            code += "\n"
+
+        code += "\n\\newframe\n".join(frames)
+
+        if wrap:
+            code += data["flavor"].end("animateinline") + "\n"
+
+    else:
+        data, content, code = get_figure_tikz_code(data, figure)
 
     if standalone:
         # When using pdflatex, \\DeclareUnicodeCharacter is necessary.
@@ -406,6 +469,7 @@ class Flavors(enum.Enum):
 \\usetikzlibrary{{{tikzlibs}}}
 \\pgfplotsset{{compat=newest}}
 """,
+        r"\usepackage{{{}}}",
     )
     context = (
         r"\start{}",
@@ -422,6 +486,7 @@ class Flavors(enum.Enum):
 \\unexpanded\\def\\startgroupplot{{\\groupplot}}
 \\unexpanded\\def\\stopgroupplot{{\\endgroupplot}}
 """,
+        r"\usemodule[{}]",
     )
 
     def start(self, what):
@@ -429,6 +494,9 @@ class Flavors(enum.Enum):
 
     def end(self, what):
         return self.value[1].format(what)
+
+    def usepackage(self, *what):
+        return self.value[4]
 
     def preamble(self, data=None):
         if data is None:
@@ -438,7 +506,13 @@ class Flavors(enum.Enum):
             }
         pgfplotslibs = ",".join(data["pgfplots libs"])
         tikzlibs = ",".join(data["tikz libs"])
-        return self.value[3].format(pgfplotslibs=pgfplotslibs, tikzlibs=tikzlibs)
+        extra_imports = (
+            self.usepackage("animate") + "\n" if data.get("animation", False) else ""
+        )
+        return (
+            self.value[3].format(pgfplotslibs=pgfplotslibs, tikzlibs=tikzlibs)
+            + extra_imports
+        )
 
     def standalone(self, code):
         docenv = self.value[2]

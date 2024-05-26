@@ -259,11 +259,15 @@ def _table(obj, data):  # noqa: C901
         xformat = ff
         col_sep = " "
 
-    if data["table_row_sep"] != "\n":
-        # don't want the \n in the table definition, just in the data (below)
-        opts.append("row sep=" + data["table_row_sep"].strip())
-
     table_row_sep = data["table_row_sep"]
+    if table_row_sep.strip() == r"\\" and data["externalize tables"]:
+        # work around ! Package pgfplots Error: Sorry, the choice 'row sep=crcr' is currently only available for inline tables, not for external files.
+        table_row_sep = "\n"
+
+    if table_row_sep != "\n":
+        # don't want the \n in the table definition, just in the data (below)
+        opts.append("row sep=" + table_row_sep.strip())
+
     ydata[ydata_mask] = np.nan
     if np.any(ydata_mask) or ~np.all(np.isfinite(ydata)):
         # matplotlib jumps at masked or nan values, while PGFPlots by default

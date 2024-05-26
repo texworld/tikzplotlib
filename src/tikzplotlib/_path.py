@@ -127,6 +127,13 @@ def draw_pathcollection(data, obj):
 
     is_filled = False
 
+    if data["table_row_sep"] != "\n":
+        # don't want the \n in the table definition, just in the data (below)
+        table_options.append("row sep=" + data["table_row_sep"].strip())
+
+    table_row_sep = data["table_row_sep"]
+
+
     if obj.get_array() is not None:
         dd_strings = np.column_stack([dd_strings, obj.get_array()])
         labels.append("colordata")
@@ -302,9 +309,9 @@ def draw_pathcollection(data, obj):
             content.append("table{")
 
         plot_table = []
-        plot_table.append("  ".join(labels) + "\n")
+        plot_table.append("  ".join(labels) + table_row_sep)
         for row in dd_strings:
-            plot_table.append(" ".join(row) + "\n")
+            plot_table.append(" ".join(row) + table_row_sep)
 
         if data["externalize tables"]:
             filepath, rel_filepath = _files.new_filepath(data, "table", ".dat")

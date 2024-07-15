@@ -29,7 +29,12 @@ builtin_colors = {
 def _get_closest_colour_name(rgb):
     match = None
     mindiff = 1.0e15
-    for h, name in webcolors.CSS3_HEX_TO_NAMES.items():
+    hex_names_dict = (
+        webcolors.CSS3_HEX_TO_NAMES
+        if hasattr(webcolors, "CSS3_HEX_TO_NAMES")
+        else webcolors._definitions._CSS3_HEX_TO_NAMES
+    )
+    for h, name in hex_names_dict.items():
         r = int(h[1:3], 16)
         g = int(h[3:5], 16)
         b = int(h[5:7], 16)

@@ -215,6 +215,12 @@ def draw_pathcollection(data, obj):
         marker0 = None
         if obj.get_paths():
             p = obj.get_paths()[0]
+            mark_size = obj.get_sizes()[0]
+            if mark_size:
+                ff = data["float format"]
+                # setting half size because pgfplots counts the radius/half-width, while mark-size is squared diameter
+                pgf_size = 0.5 * mark_size ** 0.5
+                draw_options.append(f"mark size={pgf_size:{ff}}pt")
             ms = {style: MarkerStyle(style) for style in MarkerStyle.markers}
             paths = {
                 style: marker.get_path().transformed(marker.get_transform())

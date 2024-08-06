@@ -117,40 +117,40 @@ def _get_location_from_best(obj):
     # (or center) of the axes box.
     # 1. Key points of the legend
     lower_left_legend = x0_legend
-    lower_right_legend = np.array([x1_legend[0], x0_legend[1]], dtype=np.float_)
-    upper_left_legend = np.array([x0_legend[0], x1_legend[1]], dtype=np.float_)
+    lower_right_legend = np.array([x1_legend[0], x0_legend[1]], dtype=np.float64)
+    upper_left_legend = np.array([x0_legend[0], x1_legend[1]], dtype=np.float64)
     upper_right_legend = x1_legend
     center_legend = x0_legend + dimension_legend / 2.0
     center_left_legend = np.array(
-        [x0_legend[0], x0_legend[1] + dimension_legend[1] / 2.0], dtype=np.float_
+        [x0_legend[0], x0_legend[1] + dimension_legend[1] / 2.0], dtype=np.float64
     )
     center_right_legend = np.array(
-        [x1_legend[0], x0_legend[1] + dimension_legend[1] / 2.0], dtype=np.float_
+        [x1_legend[0], x0_legend[1] + dimension_legend[1] / 2.0], dtype=np.float64
     )
     lower_center_legend = np.array(
-        [x0_legend[0] + dimension_legend[0] / 2.0, x0_legend[1]], dtype=np.float_
+        [x0_legend[0] + dimension_legend[0] / 2.0, x0_legend[1]], dtype=np.float64
     )
     upper_center_legend = np.array(
-        [x0_legend[0] + dimension_legend[0] / 2.0, x1_legend[1]], dtype=np.float_
+        [x0_legend[0] + dimension_legend[0] / 2.0, x1_legend[1]], dtype=np.float64
     )
 
     # 2. Key points of the axes
     lower_left_axes = x0_axes
-    lower_right_axes = np.array([x1_axes[0], x0_axes[1]], dtype=np.float_)
-    upper_left_axes = np.array([x0_axes[0], x1_axes[1]], dtype=np.float_)
+    lower_right_axes = np.array([x1_axes[0], x0_axes[1]], dtype=np.float64)
+    upper_left_axes = np.array([x0_axes[0], x1_axes[1]], dtype=np.float64)
     upper_right_axes = x1_axes
     center_axes = x0_axes + dimension_axes / 2.0
     center_left_axes = np.array(
-        [x0_axes[0], x0_axes[1] + dimension_axes[1] / 2.0], dtype=np.float_
+        [x0_axes[0], x0_axes[1] + dimension_axes[1] / 2.0], dtype=np.float64
     )
     center_right_axes = np.array(
-        [x1_axes[0], x0_axes[1] + dimension_axes[1] / 2.0], dtype=np.float_
+        [x1_axes[0], x0_axes[1] + dimension_axes[1] / 2.0], dtype=np.float64
     )
     lower_center_axes = np.array(
-        [x0_axes[0] + dimension_axes[0] / 2.0, x0_axes[1]], dtype=np.float_
+        [x0_axes[0] + dimension_axes[0] / 2.0, x0_axes[1]], dtype=np.float64
     )
     upper_center_axes = np.array(
-        [x0_axes[0] + dimension_axes[0] / 2.0, x1_axes[1]], dtype=np.float_
+        [x0_axes[0] + dimension_axes[0] / 2.0, x1_axes[1]], dtype=np.float64
     )
 
     # 3. Compute the distances between comparable points.

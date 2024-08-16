@@ -63,18 +63,24 @@ def draw_legend(data, obj):
     if fill_xcolor != "white":  # white is default
         legend_style.append(f"fill={fill_xcolor}")
 
-
     mark_options = []
-    handles = obj.legendHandles if hasattr(obj, "legendHandles") else obj.legend_handles if hasattr(obj, "legend_handles") else None
+    handles = (
+        obj.legendHandles
+        if hasattr(obj, "legendHandles")
+        else obj.legend_handles if hasattr(obj, "legend_handles") else None
+    )
     if handles and any(hasattr(handle, "_sizes") for handle in handles):
-        all_sizes = set(sz for handle in handles for sz in handle._sizes if hasattr(handle, "_sizes"))
+        handles_with_sizes = [handle for handle in handles if hasattr(handle, "_sizes")]
+        all_sizes = set(sz for handle in handles_with_sizes for sz in handle._sizes)
         if len(all_sizes) > 1:
-            warnings.warn(f"Varying marker sizes in the legend: {all_sizes}. Ignoring all of them.")
+            warnings.warn(
+                f"Varying marker sizes in the legend: {all_sizes}. Ignoring all of them."
+            )
         elif all_sizes:
             mark_size = all_sizes.pop()
             ff = data["float format"]
             # setting half size because pgfplots counts the radius/half-width, and sqrt the area
-            pgf_size = 0.5 * mark_size ** 0.5
+            pgf_size = 0.5 * mark_size**0.5
             mark_options.append(f"mark size={pgf_size:{ff}}")
 
     if mark_options:

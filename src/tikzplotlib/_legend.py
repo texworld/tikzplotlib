@@ -67,7 +67,7 @@ def draw_legend(data, obj):
     mark_options = []
     handles = obj.legendHandles if hasattr(obj, "legendHandles") else obj.legend_handles if hasattr(obj, "legend_handles") else None
     if handles:
-        all_sizes = set(sz for handle in handles for sz in handle.get_sizes())
+        all_sizes = set(sz for handle in handles for sz in handle._sizes)
         if len(all_sizes) > 1:
             warnings.warn(f"Varying marker sizes in the legend: {all_sizes}. Ignoring all of them.")
         elif all_sizes:
